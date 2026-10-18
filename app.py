@@ -63,12 +63,30 @@ def fmt(value, unit):
     return f"{value:,.2f}{unit}"
 
 
+def show_setup_error(error):
+    """API 키가 없거나 잘못됐을 때 원인과 설정 방법을 보여주고 멈춘다."""
+    st.error(f"OpenDART에 연결할 수 없습니다: {error}")
+    if error.status in ("NO_KEY", "010", "011"):
+        st.markdown(
+            "**설정 방법**\n"
+            "- 로컬: 프로젝트 폴더의 `.env` 파일에 `DART_API_KEY=인증키`\n"
+            "- Streamlit Cloud: 앱 화면 오른쪽 아래 **Manage app → ⋮ → Settings → Secrets**에 "
+            "아래처럼 **맨 윗줄(섹션 없이)** 입력 후 저장\n\n"
+            "```toml\nDART_API_KEY = \"발급받은_인증키\"\n```"
+        )
+    st.stop()
+
+
 # ── 사이드바 ─────────────────────────────────────────────────────────────
 def sidebar():
     st.sidebar.header("🔍 조회 조건")
     query = st.sidebar.text_input("회사명 또는 종목코드", value="삼성전자",
                                   help="띄어쓰기·대소문자 무시, 6자리 숫자는 종목코드로 검색")
-    results = search_companies(get_companies(), query, limit=30)
+    try:
+        companies = get_companies()
+    except DartApiError as e:
+        show_setup_error(e)
+    results = search_companies(companies, query, limit=30)
     if results.empty:
         st.sidebar.warning("검색 결과가 없습니다. 정식 회사명으로 검색해 보세요. (예: 현대차 → 현대자동차)")
         st.stop()

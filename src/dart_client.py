@@ -54,13 +54,28 @@ class NoDataError(DartApiError):
     (예: 연결재무제표가 없으면 별도재무제표로 다시 조회)"""
 
 
+def _key_from_streamlit_secrets() -> str:
+    """Streamlit Cloud 의 Secrets 에서 키를 읽는다. Secrets 가 없거나 Streamlit 밖이면 ''."""
+    try:
+        import streamlit as st
+
+        return str(st.secrets.get("DART_API_KEY", ""))
+    except Exception:  # 로컬에 secrets.toml 이 없으면 예외가 나므로 빈 값으로 본다.
+        return ""
+
+
 def get_api_key() -> str:
-    """.env 파일(또는 환경변수)에서 DART_API_KEY 를 읽는다."""
+    """DART_API_KEY 를 읽는다.
+
+    순서: ① 환경변수 / .env 파일 (로컬 개발)  ② Streamlit Secrets (Streamlit Cloud 배포)
+    """
     load_dotenv()
-    key = os.getenv("DART_API_KEY", "").strip()
+    key = os.getenv("DART_API_KEY", "").strip() or _key_from_streamlit_secrets().strip()
     if not key:
         raise DartApiError(
-            "NO_KEY", "DART_API_KEY가 없습니다. .env 파일에 인증키를 넣어주세요."
+            "NO_KEY",
+            "DART_API_KEY가 없습니다. 로컬은 .env 파일에, "
+            "Streamlit Cloud는 앱 설정의 Secrets에 인증키를 넣어주세요.",
         )
     return key
 

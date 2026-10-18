@@ -27,3 +27,20 @@ def test_XML_에러응답_해석():
 def test_JSON_에러응답_해석():
     body = '{"status": "013", "message": "조회된 데이타가 없습니다."}'.encode()
     assert _status_from_error_body(body)[0] == "013"
+
+
+def test_키는_환경변수가_없으면_Streamlit_Secrets에서_읽음(monkeypatch):
+    import src.dart_client as dc
+    monkeypatch.setattr(dc, "load_dotenv", lambda: None)  # 로컬 .env 를 읽지 않게
+    monkeypatch.delenv("DART_API_KEY", raising=False)
+    monkeypatch.setattr(dc, "_key_from_streamlit_secrets", lambda: "secret-key-123")
+    assert dc.get_api_key() == "secret-key-123"
+
+
+def test_키가_어디에도_없으면_설정_안내(monkeypatch):
+    import src.dart_client as dc
+    monkeypatch.setattr(dc, "load_dotenv", lambda: None)
+    monkeypatch.delenv("DART_API_KEY", raising=False)
+    monkeypatch.setattr(dc, "_key_from_streamlit_secrets", lambda: "")
+    with pytest.raises(DartApiError, match="Secrets"):
+        dc.get_api_key()
