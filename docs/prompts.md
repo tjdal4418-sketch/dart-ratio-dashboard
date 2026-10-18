@@ -164,3 +164,9 @@ Python 설치 방법을 단계별로 자세히 알려줘.
 배포했는데 이렇게 돼.
 ```
 (첨부: Streamlit Cloud 화면 — `DartApiError: DART_API_KEY가 없습니다. .env 파일에 인증키를 넣어주세요.`)
+
+## 14. 배포 완료 (2026-10-18)
+
+```
+https://dart-ratio-dashboard.streamlit.app/ 배포했어
+```

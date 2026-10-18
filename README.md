@@ -7,7 +7,7 @@
 > 회계 지식(공인회계사 1차 합격)을 바탕으로 **"비율을 어떻게 계산해야 맞는가"**에 집중했습니다.
 > 계산 결과는 금융감독원이 제공하는 재무지표와 대조해 검증했습니다. → [검증 문서](docs/verification.md)
 
-- 🔗 배포 주소: _(Streamlit Community Cloud 배포 후 추가)_
+- 🔗 **배포 주소: https://dart-ratio-dashboard.streamlit.app/**
 - 📒 개발 과정: [docs/devlog.md](docs/devlog.md) · 🤖 AI 프롬프트 기록: [docs/prompts.md](docs/prompts.md)
 
 ---
