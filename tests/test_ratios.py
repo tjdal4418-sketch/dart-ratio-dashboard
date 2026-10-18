@@ -100,3 +100,12 @@ def test_추이표는_기간별로_16개씩():
     trend = ratio_trend(reports)
     assert len(trend) == 32
     assert sorted(trend["period"].unique()) == ["2024", "2025"]
+
+
+def test_비교표는_기준연도만_회사별로():
+    from src.ratios import compare_ratios, ratio_trend
+    a = ratio_trend([{**make_report(BASE), "year": y} for y in (2024, 2025)])
+    b = ratio_trend([{**make_report(BASE, fs_div="OFS"), "year": 2024}])  # 2025 보고서 없음
+    table = compare_ratios({"A사": a, "B사": b}, 2025)
+    assert list(table["company"].unique()) == ["A사"]
+    assert len(table) == 16

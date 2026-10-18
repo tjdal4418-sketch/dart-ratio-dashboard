@@ -7,8 +7,9 @@
   ① 회사 정보와 경고 (별도 대체, 금융업, 상장폐지)
   ② 요약 카드 (핵심 비율 6개 + 전년 대비 증감)
   ③ 분류별 탭 (추이 차트 + 표)
-  ④ 원본 데이터 (계산에 쓴 계정과 금액, CSV 다운로드)
-  ⑤ 데이터 출처와 기준일
+  ④ 기업 비교 (최대 3개, 비율별 막대 · 추이 · 표)
+  ⑤ 원본 데이터 (계산에 쓴 계정과 금액, CSV 다운로드)
+  ⑥ 데이터 출처와 기준일
 
 이 파일은 화면만 담당하고, 계산은 src/ 의 함수를 불러 쓴다.
 """
@@ -23,12 +24,15 @@ from src.corp_code import load_listed_companies, search_companies
 from src.dart_client import DartApiError
 from src.financials import FS_NAMES, REPORT_NAMES, fetch_company, fetch_reports, period_label
 from src.industry import MARKET_NAMES, is_financial
-from src.ratios import CATEGORIES, ratio_trend
+from src.ratios import CATEGORIES, RATIO_DEFS, compare_ratios, formula, ratio_trend
 
 st.set_page_config(page_title="DART 재무비율 대시보드", page_icon="📊", layout="wide")
 
 REPORT_ORDER = ["11011", "11013", "11012", "11014"]  # 사업 · 1분기 · 반기 · 3분기
-SERIES_COLOR = "#2a78d6"  # 단일 계열 선 색 (색각이상 검증된 팔레트의 1번)
+# 색각이상(CVD) 검증을 통과한 팔레트의 1~3번 (파랑·주황·청록). 3개까지는 모든 쌍이 구분된다.
+COMPARE_COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]
+SERIES_COLOR = COMPARE_COLORS[0]  # 단일 계열 선 색
+MAX_COMPARE = 3  # 비교 기업 수 (조회 중인 회사 포함)
 SUMMARY_KEYS = ["debt_ratio", "current_ratio", "operating_margin", "roe", "revenue_growth", "interest_coverage"]
 LOWER_IS_BETTER = {"debt_ratio"}  # 낮을수록 좋은 비율 → 증감 색을 반대로
 FIRST_YEAR = 2015  # OpenDART 재무제표 API 제공 시작 연도
@@ -189,7 +193,141 @@ def show_category_tabs(trend):
             st.dataframe(pivot, width="stretch")
 
 
-# ── ④ 원본 데이터 ────────────────────────────────────────────────────────
+# ── ④ 기업 비교 ─────────────────────────────────────────────────────────
+def company_colors(main_code, other_codes):
+    """회사별 색을 정한다. 조회 중인 회사는 항상 1번 색.
+    나머지는 처음 고른 순간의 색을 계속 유지한다(다른 회사를 빼도 색이 바뀌지 않도록)."""
+    saved = st.session_state.setdefault("compare_colors", {})
+    for code in list(saved):
+        if code not in other_codes:
+            del saved[code]
+    for code in other_codes:
+        if code not in saved:
+            used = set(saved.values())
+            saved[code] = next(i for i in range(1, MAX_COMPARE) if i not in used)
+    return {main_code: COMPARE_COLORS[0], **{c: COMPARE_COLORS[i] for c, i in saved.items()}}
+
+
+def bar_chart(data, unit, colors):
+    """한 비율을 회사별 막대로 비교. 회사명이 x축에 있어 색만으로 구분하지 않는다."""
+    fig = go.Figure(go.Bar(
+        x=data["company"].tolist(), y=data["value"].tolist(),
+        marker=dict(color=[colors[c] for c in data["company"]], cornerradius=4),
+        text=[fmt(v, unit) for v in data["value"]], textposition="outside", cliponaxis=False,
+        customdata=data["note"].tolist(),
+        hovertemplate="%{x}<br><b>%{y:,.2f}" + unit + "</b><br>%{customdata}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=230, margin=dict(l=8, r=8, t=28, b=8), showlegend=False, bargap=0.45,
+        xaxis=dict(type="category"),
+        yaxis=dict(ticksuffix="%" if unit == "%" else "", gridcolor="rgba(128,128,128,0.18)",
+                   zeroline=True, zerolinecolor="rgba(128,128,128,0.35)"),
+    )
+    return fig
+
+
+def compare_line_chart(trends, key, colors):
+    """한 비율의 회사별 추이 (선 여러 개, 범례 + 마지막 점 라벨)."""
+    unit = RATIO_DEFS[key][2]
+    fig = go.Figure()
+    for company, trend in trends.items():
+        data = trend[trend["key"] == key]
+        if data.empty:
+            continue
+        values = data["value"].tolist()
+        last_index = max((i for i, v in enumerate(values) if pd.notna(v)), default=None)
+        fig.add_trace(go.Scatter(
+            x=data["period"].tolist(), y=values, name=company,
+            mode="lines+markers+text", textposition="top center",
+            text=[company if i == last_index else "" for i in range(len(values))],
+            textfont=dict(size=11),
+            line=dict(color=colors[company], width=2), marker=dict(size=8, color=colors[company]),
+            customdata=data["note"].tolist(),
+            hovertemplate=company + " %{x}<br><b>%{y:,.2f}" + unit + "</b><br>%{customdata}<extra></extra>",
+        ))
+    fig.update_layout(
+        height=320, margin=dict(l=8, r=8, t=8, b=8), hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        xaxis=dict(type="category", showgrid=False),
+        yaxis=dict(ticksuffix="%" if unit == "%" else "", gridcolor="rgba(128,128,128,0.18)",
+                   zeroline=True, zerolinecolor="rgba(128,128,128,0.35)"),
+    )
+    return fig
+
+
+def show_comparison(corp, main_trend, year, reprt_code, fs_pref, n_years):
+    st.subheader("기업 비교", help=f"조회 중인 회사를 포함해 최대 {MAX_COMPARE}개 기업을 같은 기준으로 비교")
+    companies = get_companies()
+    others = companies[companies["corp_code"] != corp["corp_code"]]
+    labels = dict(zip(others["corp_code"], others["corp_name"] + " (" + others["stock_code"] + ")"))
+    chosen = st.multiselect(
+        f"비교할 기업 (최대 {MAX_COMPARE - 1}개)", list(labels), format_func=labels.get,
+        max_selections=MAX_COMPARE - 1, placeholder="회사명을 입력해 선택하세요",
+    )
+    if not chosen:
+        st.caption("비교할 기업을 고르면 같은 연도·보고서·연결/별도 기준으로 비율을 나란히 보여줍니다.")
+        return
+
+    # 회사명 → 추이표. 이름이 같은 회사(예: 옛 SK와 현재 SK)는 종목코드를 붙여 구분한다.
+    names = {corp["corp_code"]: corp["corp_name"]}
+    for code in chosen:
+        name = labels[code].split(" (")[0]
+        names[code] = name if name not in names.values() else labels[code]
+    color_by_code = company_colors(corp["corp_code"], chosen)
+    colors = {names[c]: color_by_code[c] for c in names}
+
+    trends = {corp["corp_name"]: main_trend}
+    notices = []
+    for code in chosen:
+        try:
+            reports = get_reports(code, year, reprt_code, n_years, fs_pref)
+            info = get_company(code)
+        except DartApiError as e:
+            notices.append(f"{names[code]}: 조회 오류 ({e})")
+            continue
+        trends[names[code]] = ratio_trend(reports)
+        if not reports or reports[-1]["year"] != year:
+            notices.append(f"{names[code]}: {year}년 {REPORT_NAMES[reprt_code]} 없음")
+        elif reports[-1]["fallback"]:
+            notices.append(f"{names[code]}: 연결재무제표가 없어 별도 기준")
+        if is_financial(info.get("induty_code"), info.get("corp_name", "")):
+            notices.append(f"{names[code]}: 금융업이라 일반 비율 비교가 부적합")
+    for notice in notices:
+        st.info("ℹ️ " + notice)
+
+    table = compare_ratios(trends, year)
+    if table.empty:
+        return
+
+    # (1) 분류별 막대 비교 — 비율마다 단위가 달라 하나의 축에 섞지 않고 비율별로 따로 그린다.
+    category = st.radio("분류", CATEGORIES, horizontal=True, key="compare_category")
+    part = table[table["category"] == category]
+    keys = list(dict.fromkeys(part["key"]))
+    cols = st.columns(2)
+    for i, key in enumerate(keys):
+        data = part[part["key"] == key]
+        with cols[i % 2]:
+            st.markdown(f"**{data['name'].iloc[0]}**", help=formula(key))
+            if data["value"].isna().all():
+                st.info("계산할 수 없습니다: " + " / ".join(f"{c}: {n}" for c, n in zip(data["company"], data["note"])))
+            else:
+                st.plotly_chart(bar_chart(data, data["unit"].iloc[0], colors), width="stretch",
+                                config={"displayModeBar": False}, key=f"bar_{key}")
+
+    # (2) 한 비율의 추이 비교
+    key = st.selectbox("추이로 비교할 비율", list(RATIO_DEFS),
+                       format_func=lambda k: RATIO_DEFS[k][0], index=list(RATIO_DEFS).index("roe"))
+    st.plotly_chart(compare_line_chart(trends, key, colors), width="stretch",
+                    config={"displayModeBar": False}, key="compare_trend")
+
+    # (3) 전체 비율 비교표
+    table = table.assign(display=[fmt(v, u) for v, u in zip(table["value"], table["unit"])])
+    pivot = table.pivot(index="name", columns="company", values="display")
+    pivot = pivot.reindex(list(dict.fromkeys(table["name"])))[list(dict.fromkeys(table["company"]))]
+    st.dataframe(pivot.rename_axis(index="비율", columns=None), width="stretch")
+
+
+# ── ⑤ 원본 데이터 ────────────────────────────────────────────────────────
 ACCOUNT_COLUMNS = {
     "period": "기간", "label": "계정", "current": "당기(기말)", "prior": "비교(기초·전기)",
     "current_3m": "당기 3개월", "sj_div": "재무제표", "account_nm": "공시 계정명",
@@ -230,7 +368,7 @@ def show_raw_data(reports, trend, corp_name):
                          file_name=f"{corp_name}_재무비율.csv", mime="text/csv")
 
 
-# ── ⑤ 출처와 기준일 ─────────────────────────────────────────────────────
+# ── ⑥ 출처와 기준일 ─────────────────────────────────────────────────────
 def show_footer(reports):
     st.divider()
     latest = reports[-1]
@@ -271,6 +409,7 @@ def main():
     show_header(corp, info, reports, fs_pref, n_years)
     show_summary(trend, reports)
     show_category_tabs(trend)
+    show_comparison(corp, trend, year, reprt_code, fs_pref, n_years)
     show_raw_data(reports, trend, corp["corp_name"])
     show_footer(reports)
 

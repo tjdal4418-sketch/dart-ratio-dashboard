@@ -140,6 +140,21 @@ def ratio_trend(reports: list[dict]) -> pd.DataFrame:
         return pd.DataFrame()
     return pd.concat(frames, ignore_index=True)
 
+
+def compare_ratios(trends: dict[str, pd.DataFrame], year: int) -> pd.DataFrame:
+    """기업별 추이표 {회사명: ratio_trend 결과} → 기준연도의 비교표 (긴 형식, company 열 추가).
+    기준연도 보고서가 없는 회사는 빠진다."""
+    frames = []
+    for company, trend in trends.items():
+        if trend.empty:
+            continue
+        part = trend[trend["year"] == year].copy()
+        part.insert(0, "company", company)
+        frames.append(part)
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
+
 if __name__ == "__main__":
     # 실행 예)  python -m src.ratios 삼성전자 2025 11011
     import sys
