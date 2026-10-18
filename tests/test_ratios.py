@@ -92,3 +92,11 @@ def test_공식은_docstring_첫줄():
     assert formula("current_ratio") == "유동비율 = 유동자산 ÷ 유동부채 × 100"
     for key in RATIO_DEFS:
         assert "=" in formula(key)
+
+
+def test_추이표는_기간별로_16개씩():
+    from src.ratios import ratio_trend
+    reports = [{**make_report(BASE), "year": y} for y in (2024, 2025)]
+    trend = ratio_trend(reports)
+    assert len(trend) == 32
+    assert sorted(trend["period"].unique()) == ["2024", "2025"]

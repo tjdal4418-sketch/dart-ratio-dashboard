@@ -23,6 +23,8 @@ REPORT_NAMES = {"11011": "사업보고서", "11012": "반기보고서", "11013":
 REPORT_MONTHS = {"11013": 3, "11012": 6, "11014": 9, "11011": 12}  # 누적 개월 수 (연환산에 사용)
 FS_NAMES = {"CFS": "연결", "OFS": "별도"}
 
+QUARTER_SUFFIX = {"11013": "1Q", "11012": "2Q", "11014": "3Q", "11011": ""}
+
 NO_DATA_CACHE_DAYS = 1
 COMPANY_CACHE_DAYS = 30
 
@@ -39,6 +41,12 @@ def _read_cache(path, max_days=None):
 def _write_cache(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def period_label(year: int, reprt_code: str) -> str:
+    """차트·표에 쓸 기간 이름. 예) 2025, 2026.2Q"""
+    suffix = QUARTER_SUFFIX[reprt_code]
+    return f"{year}.{suffix}" if suffix else str(year)
 
 
 def fetch_statement_rows(corp_code: str, year: int, reprt_code: str, fs_div: str) -> list[dict]:

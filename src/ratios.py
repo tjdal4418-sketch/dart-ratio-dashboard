@@ -9,7 +9,7 @@ import inspect
 import pandas as pd
 
 from src import calculations as calc
-from src.financials import REPORT_MONTHS
+from src.financials import REPORT_MONTHS, period_label
 
 # key: (이름, 분류, 단위, 계산 함수)
 #   공식(툴팁)은 계산 함수 docstring 의 첫 줄을 그대로 쓴다. → 공식이 코드와 화면에서 항상 같다.
@@ -125,6 +125,20 @@ def compute_ratios(report: dict) -> pd.DataFrame:
         })
     return pd.DataFrame(rows).set_index("key")
 
+
+
+def ratio_trend(reports: list[dict]) -> pd.DataFrame:
+    """여러 기간의 보고서 → 추이표 (긴 형식: 기간 × 비율 한 행씩). 차트와 CSV 에 쓴다."""
+    frames = []
+    for report in reports:
+        table = compute_ratios(report).reset_index()
+        table["period"] = period_label(report["year"], report["reprt_code"])
+        table["year"] = report["year"]
+        table["fs_div"] = report["fs_div"]
+        frames.append(table)
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
 
 if __name__ == "__main__":
     # 실행 예)  python -m src.ratios 삼성전자 2025 11011
