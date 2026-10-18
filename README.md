@@ -27,8 +27,6 @@
 
 ## 스크린샷
 
-> 📷 스크린샷은 `docs/images/`에 넣고 아래 경로로 연결하면 됩니다.
-
 | 요약 카드 · 추이 차트 | 기업 비교 |
 |---|---|
 | ![요약과 추이](docs/images/summary.png) | ![기업 비교](docs/images/compare.png) |
