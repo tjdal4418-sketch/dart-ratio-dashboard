@@ -145,3 +145,7 @@ def test_영업현금흐름_대_순이익():
 def test_영업현금흐름_대_순이익_순손실():
     r = calc.ocf_to_net_income(150, -100)
     assert r.value is None and r.note == "당기순손실"
+
+
+def test_증가율_데이터없음_사유에_계정이름():
+    assert calc.revenue_growth(None, None).note == "데이터 없음: 당기 매출액, 전기 매출액"

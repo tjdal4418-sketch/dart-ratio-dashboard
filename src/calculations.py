@@ -134,12 +134,13 @@ def inventory_turnover(revenue, inventories_begin, inventories_end) -> Ratio:
 
 
 # ── 성장성 ───────────────────────────────────────────────────
-def growth_rate(current, prior) -> Ratio:
+def growth_rate(current, prior, account="") -> Ratio:
     """증가율 = (당기 − 전기) ÷ 전기 × 100
 
     전기 값이 0 이하(적자)이면 증가율이 의미 없으므로 None. (흑자전환 / 적자지속으로 표시)
+    account: 사유 메시지에 쓸 계정 이름 (예: '매출액')
     """
-    missing = _missing(당기=current, 전기=prior)
+    missing = _missing(**{f"당기 {account}".strip(): current, f"전기 {account}".strip(): prior})
     if missing:
         return missing
     if prior == 0:
@@ -154,17 +155,17 @@ def growth_rate(current, prior) -> Ratio:
 
 def revenue_growth(revenue, revenue_prior) -> Ratio:
     """매출액증가율 = (당기 매출액 − 전기 매출액) ÷ 전기 매출액 × 100"""
-    return growth_rate(revenue, revenue_prior)
+    return growth_rate(revenue, revenue_prior, "매출액")
 
 
 def operating_income_growth(operating_income, operating_income_prior) -> Ratio:
     """영업이익증가율 = (당기 영업이익 − 전기 영업이익) ÷ 전기 영업이익 × 100"""
-    return growth_rate(operating_income, operating_income_prior)
+    return growth_rate(operating_income, operating_income_prior, "영업이익")
 
 
 def total_assets_growth(assets_end, assets_begin) -> Ratio:
     """총자산증가율 = (기말 총자산 − 기초 총자산) ÷ 기초 총자산 × 100"""
-    return growth_rate(assets_end, assets_begin)
+    return growth_rate(assets_end, assets_begin, "총자산")
 
 
 # ── 현금흐름 ─────────────────────────────────────────────────
