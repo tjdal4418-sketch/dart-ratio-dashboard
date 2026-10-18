@@ -1,0 +1,23 @@
+# --- 비밀 정보: API 키는 절대 커밋하지 않는다 ---
+.env
+.streamlit/secrets.toml
+
+# --- 캐시 / 다운로드 데이터 ---
+.cache/
+data/
+CORPCODE.xml
+corpCode.zip
+*.zip
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- 에디터 / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
