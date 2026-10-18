@@ -27,9 +27,9 @@
 
 ## 스크린샷
 
-| 요약 카드 · 추이 차트 | 기업 비교 |
+| 요약 카드 | 기업 비교 |
 |---|---|
-| ![요약과 추이](docs/images/summary.png) | ![기업 비교](docs/images/compare.png) |
+| ![요약 카드](docs/images/summary.png) | ![기업 비교](docs/images/compare.png) |
 
 ---
 
